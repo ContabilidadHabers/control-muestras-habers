@@ -17,7 +17,7 @@ import { getStorage, ref as sRef, uploadString, getDownloadURL } from "https://w
    Consola Firebase → ⚙ Configuración del proyecto → Tus apps → SDK (Config)
    --------------------------------------------------------- */
 const firebaseConfig = {
-  apiKey: "AIzaSyDQHNvUumdUiab3swQrURvVdqf6tkgBPyU",
+  apiKey: "AIzaSyDQHNvUumdUiab3swQrURVvDqf6tkGBPyU",
   authDomain: "habers-muestras.firebaseapp.com",
   projectId: "habers-muestras",
   storageBucket: "habers-muestras.firebasestorage.app",

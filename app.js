@@ -22,8 +22,8 @@ const firebaseConfig = {
   projectId: "habers-muestras",
   storageBucket: "habers-muestras.firebasestorage.app",
   messagingSenderId: "422538036878",
-  appId: "1:422538036878:web:77316cfea6e55bb764ebdf",
-  measurementId: "G-D20BGS0L1W"
+  appId: "1:422538036878:web:ffcb93945ac50ae064ebdf",
+  measurementId: "G-7TLWT33BY3"
 };
 
 /* 2) AJUSTES DE LA APP */

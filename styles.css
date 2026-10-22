@@ -223,6 +223,20 @@ select.estatus-sel{min-height:32px; padding:4px 28px 4px 10px; font-size:.82rem;
 .firma.tiene-trazo .firma-guia{display:none}
 .firma-acciones{display:flex; justify-content:flex-end; gap:8px; margin-top:10px}
 
+/* Importar desde Bind ERP */
+.card-bind{border-left:4px solid var(--acento)}
+.bind-buscar{display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap}
+.bind-buscar .field{flex:0 1 240px}
+.bind-buscar input{text-transform:uppercase; font-variant-numeric:tabular-nums; letter-spacing:.04em}
+.bind-estado{margin:10px 0 0; color:var(--texto-2); min-height:1.2em}
+.bind-estado:empty{display:none}
+.bind-estado.ok{color:var(--ok)}
+.bind-estado.error{color:var(--danger)}
+.btn.is-cargando{position:relative; color:transparent !important}
+.btn.is-cargando::after{content:""; position:absolute; width:16px; height:16px; border-radius:50%; border:2px solid #F7F2EA; border-right-color:transparent; animation:girar .7s linear infinite}
+@keyframes girar{to{transform:rotate(360deg)}}
+@media (max-width: 760px){ .bind-buscar .field, .bind-buscar .btn{flex:1 1 100%} }
+
 .form-acciones{display:flex; justify-content:flex-end; gap:12px; flex-wrap:wrap; position:sticky; bottom:0; padding:14px 0;
   background:linear-gradient(transparent, var(--bg) 30%)}
 
@@ -287,6 +301,7 @@ select.estatus-sel{min-height:32px; padding:4px 28px 4px 10px; font-size:.82rem;
   .modal-cuerpo{padding:18px}
   .section-head .btn{width:100%}
   .form-acciones .btn{flex:1}
+  .toast{bottom:88px}
 }
 @media (max-width: 420px){
   .kpis{grid-template-columns:1fr}

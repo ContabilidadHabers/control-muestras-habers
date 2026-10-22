@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2F2B25">
+  <title>HABERS · Préstamo de Muestras</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Saltar al contenido</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark">HABERS<sup>®</sup></span>
+        <span class="brand-sub">Control interno de préstamo de muestras</span>
+      </div>
+      <div class="conn" id="conn" role="status" aria-live="polite">
+        <span class="conn-dot"></span><span class="conn-txt">Conectando…</span>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Secciones">
+      <button class="tab is-active" role="tab" id="t-dashboard" aria-controls="tab-dashboard" aria-selected="true" data-tab="dashboard">Dashboard</button>
+      <button class="tab" role="tab" id="t-formulario" aria-controls="tab-formulario" aria-selected="false" data-tab="formulario">Formulario</button>
+      <button class="tab" role="tab" id="t-detalle" aria-controls="tab-detalle" aria-selected="false" data-tab="detalle">Detalle</button>
+    </nav>
+  </header>
+
+  <div id="banner" class="banner" role="alert" hidden></div>
+
+  <main id="main" class="container">
+
+    <!-- ======================= DASHBOARD ======================= -->
+    <section id="tab-dashboard" class="panel is-active" role="tabpanel" aria-labelledby="t-dashboard">
+      <div class="section-head">
+        <div>
+          <h1>Dashboard</h1>
+          <p class="muted">Resumen de muestras prestadas, subsidiadas y dinero en garantía.</p>
+        </div>
+      </div>
+
+      <div class="card filtros">
+        <div class="field">
+          <label for="f-desde">Desde</label>
+          <input type="date" id="f-desde">
+        </div>
+        <div class="field">
+          <label for="f-hasta">Hasta</label>
+          <input type="date" id="f-hasta">
+        </div>
+        <div class="field">
+          <label for="f-vendedor">Vendedor</label>
+          <select id="f-vendedor"><option value="">Todos los vendedores</option></select>
+        </div>
+        <div class="filtros-acciones">
+          <div class="chips" role="group" aria-label="Rangos rápidos">
+            <button type="button" class="chip" data-rango="mes">Este mes</button>
+            <button type="button" class="chip" data-rango="30">Últimos 30 días</button>
+            <button type="button" class="chip" data-rango="anio">Este año</button>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" id="f-limpiar">Limpiar filtros</button>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <article class="kpi">
+          <span class="kpi-label">Total prestado</span>
+          <strong class="kpi-valor" id="k-prestado">$0.00</strong>
+          <span class="kpi-nota" id="k-prestado-n">—</span>
+        </article>
+        <article class="kpi">
+          <span class="kpi-label">Total subsidiado</span>
+          <strong class="kpi-valor" id="k-subsidiado">$0.00</strong>
+          <span class="kpi-nota" id="k-subsidiado-n">—</span>
+        </article>
+        <article class="kpi">
+          <span class="kpi-label">Dinero en garantía</span>
+          <strong class="kpi-valor" id="k-garantia">$0.00</strong>
+          <span class="kpi-nota" id="k-garantia-n">—</span>
+        </article>
+        <article class="kpi kpi-oscuro">
+          <span class="kpi-label">Muestras activas en la calle</span>
+          <strong class="kpi-valor" id="k-activas">0</strong>
+          <span class="kpi-nota" id="k-activas-n">—</span>
+        </article>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Métricas por vendedor</h2>
+          <span class="muted small" id="m-rango"></span>
+        </div>
+        <div class="tabla-wrap">
+          <table class="tabla" id="tabla-vendedores">
+            <thead>
+              <tr>
+                <th scope="col">Vendedor</th>
+                <th scope="col" class="num">Préstamos</th>
+                <th scope="col" class="num">Piezas prestadas</th>
+                <th scope="col" class="num">Monto asignado</th>
+                <th scope="col" class="num">Piezas en la calle</th>
+                <th scope="col" class="num">Garantía</th>
+                <th scope="col">Participación</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card admin" id="admin">
+        <div class="card-head">
+          <h2>Administración de vendedores</h2>
+          <button type="button" class="btn btn-ghost btn-sm" id="admin-cerrar" hidden>Bloquear panel</button>
+        </div>
+
+        <form id="admin-login" class="admin-login" autocomplete="off">
+          <p class="muted small" id="admin-ayuda">Ingresa la contraseña de administrador para agregar o desactivar vendedores.</p>
+          <div class="admin-campos">
+            <div class="field">
+              <label for="admin-pw" id="admin-pw-lbl">Contraseña</label>
+              <input type="password" id="admin-pw" autocomplete="current-password" required>
+            </div>
+            <div class="field" id="admin-pw2-wrap" hidden>
+              <label for="admin-pw2">Confirmar contraseña</label>
+              <input type="password" id="admin-pw2" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary" id="admin-entrar">Entrar</button>
+          </div>
+        </form>
+
+        <div id="admin-body" hidden>
+          <form id="admin-agregar" class="admin-agregar">
+            <div class="field">
+              <label for="nuevo-vendedor">Nuevo vendedor</label>
+              <input type="text" id="nuevo-vendedor" placeholder="Nombre completo" required maxlength="80">
+            </div>
+            <button type="submit" class="btn btn-primary">Agregar</button>
+          </form>
+          <ul class="lista-vendedores" id="lista-vendedores"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= FORMULARIO ======================= -->
+    <section id="tab-formulario" class="panel" role="tabpanel" aria-labelledby="t-formulario" hidden>
+      <div class="section-head">
+        <div>
+          <h1>Registro de préstamo</h1>
+          <p class="muted">Los campos marcados con <span class="req">*</span> son obligatorios.</p>
+        </div>
+      </div>
+
+      <form id="form" novalidate>
+        <div class="card card-bind">
+          <div class="card-head">
+            <h2>Importar desde Bind ERP</h2>
+            <span class="muted small">Solo pedidos de muestra serie M · consulta bajo demanda</span>
+          </div>
+          <div class="bind-buscar">
+            <div class="field">
+              <label for="bind-numero">Número de muestra</label>
+              <input type="text" id="bind-numero" placeholder="Ej. M90" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false">
+            </div>
+            <button type="button" class="btn btn-primary" id="bind-cargar">Cargar datos de Bind ERP</button>
+          </div>
+          <p class="bind-estado small" id="bind-estado" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="card">
+          <h2>Datos generales</h2>
+          <div class="grid grid-3">
+            <div class="field">
+              <label for="fechaSalida">Fecha de salida <span class="req">*</span></label>
+              <input type="date" id="fechaSalida" required>
+            </div>
+            <div class="field">
+              <label for="fechaDevolucion">Fecha estimada de devolución <span class="req">*</span></label>
+              <input type="date" id="fechaDevolucion" required>
+            </div>
+            <div class="field">
+              <label for="vendedor">Vendedor <span class="req">*</span></label>
+              <select id="vendedor" required><option value="">Selecciona…</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Datos del cliente</h2>
+          <div class="grid grid-2">
+            <div class="field">
+              <label for="clienteNombre">Nombre <span class="req">*</span></label>
+              <input type="text" id="clienteNombre" required maxlength="120" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="clienteEmpresa">Empresa</label>
+              <input type="text" id="clienteEmpresa" maxlength="120" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="clienteTelefono">Teléfono</label>
+              <input type="tel" id="clienteTelefono" maxlength="30" inputmode="tel" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="clienteCorreo">Correo</label>
+              <input type="email" id="clienteCorreo" maxlength="120" autocomplete="off">
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Detalle de muestras <span class="req">*</span></h2>
+            <button type="button" class="btn btn-ghost btn-sm" id="add-muestra">+ Agregar muestra</button>
+          </div>
+          <div class="muestras-head" aria-hidden="true">
+            <span>Código / Descripción</span><span class="num">Cantidad</span><span class="num">Valor unit. $</span><span class="num">Subtotal</span><span></span>
+          </div>
+          <div id="muestras"></div>
+          <div class="muestras-total">
+            <span>Total</span>
+            <span><strong id="tot-piezas">0</strong> piezas</span>
+            <strong id="tot-valor">$0.00</strong>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Opciones de control</h2>
+          <div class="grid grid-3">
+            <div class="field">
+              <label for="garantia">Dinero dejado en garantía ($)</label>
+              <input type="number" id="garantia" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+            </div>
+            <div class="field">
+              <span class="label">¿Muestra subsidiada / tomada a cuenta de pedido?</span>
+              <label class="switch">
+                <input type="checkbox" id="subsidiada">
+                <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                <span class="switch-txt" id="subsidiada-txt">No</span>
+              </label>
+            </div>
+            <div class="field">
+              <label for="estatus">Estatus</label>
+              <select id="estatus">
+                <option value="Prestado">Prestado</option>
+                <option value="Devuelto">Devuelto</option>
+                <option value="Subsidiado">Subsidiado</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="notas">Notas (opcional)</label>
+            <textarea id="notas" rows="2" maxlength="500"></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Firma digital</h2>
+          <p class="muted small">Firma con el dedo, lápiz o mouse y presiona «Guardar firma». Ambas firmas son obligatorias.</p>
+          <div class="grid grid-2 firmas">
+            <div class="firma" data-firma="vendedor">
+              <div class="firma-head"><span>Firma del vendedor</span><span class="firma-estado">Sin guardar</span></div>
+              <div class="firma-lienzo">
+                <canvas aria-label="Área de firma del vendedor"></canvas>
+                <span class="firma-guia">Firme aquí</span>
+              </div>
+              <div class="firma-acciones">
+                <button type="button" class="btn btn-ghost btn-sm" data-accion="borrar">Borrar</button>
+                <button type="button" class="btn btn-sm" data-accion="guardar">Guardar firma</button>
+              </div>
+            </div>
+            <div class="firma" data-firma="receptor">
+              <div class="firma-head"><span>Firma de quien recibe</span><span class="firma-estado">Sin guardar</span></div>
+              <div class="firma-lienzo">
+                <canvas aria-label="Área de firma de quien recibe la muestra"></canvas>
+                <span class="firma-guia">Firme aquí</span>
+              </div>
+              <div class="firma-acciones">
+                <button type="button" class="btn btn-ghost btn-sm" data-accion="borrar">Borrar</button>
+                <button type="button" class="btn btn-sm" data-accion="guardar">Guardar firma</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-acciones">
+          <button type="reset" class="btn btn-ghost">Limpiar formulario</button>
+          <button type="submit" class="btn btn-primary btn-lg" id="btn-guardar">Guardar préstamo</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ======================= DETALLE ======================= -->
+    <section id="tab-detalle" class="panel" role="tabpanel" aria-labelledby="t-detalle" hidden>
+      <div class="section-head">
+        <div>
+          <h1>Detalle de registros</h1>
+          <p class="muted" id="d-conteo">—</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-exportar">Exportar a Excel (CSV)</button>
+      </div>
+
+      <div class="card toolbar">
+        <div class="field buscador">
+          <label for="d-buscar" class="sr-only">Buscar</label>
+          <input type="search" id="d-buscar" placeholder="Buscar por cliente, empresa, muestra, vendedor, folio o pedido Bind…">
+        </div>
+        <div class="chips" id="d-estatus" role="group" aria-label="Filtrar por estatus">
+          <button type="button" class="chip is-active" data-estatus="todos">Todos</button>
+          <button type="button" class="chip" data-estatus="Prestado">Pendiente</button>
+          <button type="button" class="chip" data-estatus="vencido">Vencidos</button>
+          <button type="button" class="chip" data-estatus="Devuelto">Devuelto</button>
+          <button type="button" class="chip" data-estatus="Subsidiado">Subsidiado</button>
+        </div>
+      </div>
+
+      <div class="card card-flush">
+        <div class="tabla-wrap tabla-alta">
+          <table class="tabla sheet" id="tabla-detalle">
+            <thead>
+              <tr>
+                <th scope="col" data-orden="folio">Folio</th>
+                <th scope="col" data-orden="fechaSalida">Salida</th>
+                <th scope="col" data-orden="fechaDevolucion">Devolución est.</th>
+                <th scope="col" data-orden="vendedorNombre">Vendedor</th>
+                <th scope="col" data-orden="cliente">Cliente</th>
+                <th scope="col" data-orden="empresa">Empresa</th>
+                <th scope="col">Muestras</th>
+                <th scope="col" class="num" data-orden="totalPiezas">Piezas</th>
+                <th scope="col" class="num" data-orden="totalValor">Valor</th>
+                <th scope="col" class="num" data-orden="garantia">Garantía</th>
+                <th scope="col" data-orden="estatus">Estatus</th>
+                <th scope="col"><span class="sr-only">Acciones</span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal comprobante -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-fondo" data-cerrar></div>
+    <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="modal-titulo" tabindex="-1">
+      <div class="modal-head">
+        <h2 id="modal-titulo">Comprobante de préstamo</h2>
+        <div class="modal-acciones">
+          <button type="button" class="btn btn-ghost btn-sm" id="modal-imprimir">Imprimir / PDF</button>
+          <button type="button" class="btn-x" data-cerrar aria-label="Cerrar">×</button>
+        </div>
+      </div>
+      <div class="modal-cuerpo" id="modal-cuerpo"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

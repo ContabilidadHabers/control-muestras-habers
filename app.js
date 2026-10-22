@@ -48,7 +48,7 @@ const BIND_CONFIG = {
   baseUrl: "https://api.bind.com.mx/api",
   apiKey: "",            // Bearer API Key (solo pruebas locales)
   subscriptionKey: "",   // Ocp-Apim-Subscription-Key (opcional, usuarios registrados)
-  proxyUrl: "",          // p. ej. "https://bind-habers.TU-SUBDOMINIO.workers.dev/api"
+  proxyUrl: "https://bind-proxy.contabilidad1.workers.dev/",          // p. ej. "https://bind-habers.TU-SUBDOMINIO.workers.dev/api"
   serie: "M",            // solo se consultan pedidos de esta serie
   timeoutMs: 15000,
   cacheMin: 10,          // minutos que se reutiliza una consulta ya hecha (ahorra cuota)

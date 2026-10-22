@@ -17,12 +17,13 @@ import { getStorage, ref as sRef, uploadString, getDownloadURL } from "https://w
    Consola Firebase → ⚙ Configuración del proyecto → Tus apps → SDK (Config)
    --------------------------------------------------------- */
 const firebaseConfig = {
-  apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1bmlxdWVfbmFtZSI6ImF2aWdpbHwxMzQ1OTYiLCJJbnRlcm5hbElEIjoiYmM4Yjc5NDctNzIxZS00N2UzLTlhYjUtOGY4YzcwNWIxMDAwIiwibmJmIjoxNzc5NDY1MDUwLCJleHAiOjE4MTEwMDEwNTAsImlhdCI6MTc3OTQ2NTA1MCwiaXNzIjoiTWlubnRfU29sdXRpb25zX1NBX0RFX0NWIiwiYXVkIjoiQmluZF9FUlBfQVBJX1VzZXJzIn0.oZBYbDs_6tkE-ve17ZgBKYr_3Yqz1I8w39VlFBSwGi4",
-  authDomain: "tu-proyecto.firebaseapp.com",
-  projectId: "tu-proyecto",
-  storageBucket: "tu-proyecto.firebasestorage.app",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000"
+  apiKey: "AIzaSyDQHNvUumdUiab3swQrURvVdqf6tkgBPyU",
+  authDomain: "habers-muestras.firebaseapp.com",
+  projectId: "habers-muestras",
+  storageBucket: "habers-muestras.firebasestorage.app",
+  messagingSenderId: "422538036878",
+  appId: "1:422538036878:web:ffcb93945ac50ae064ebdf",
+  measurementId: "G-7TLWT33BY3"
 };
 
 /* 2) AJUSTES DE LA APP */

@@ -17,13 +17,12 @@ import { getStorage, ref as sRef, uploadString, getDownloadURL } from "https://w
    Consola Firebase → ⚙ Configuración del proyecto → Tus apps → SDK (Config)
    --------------------------------------------------------- */
 const firebaseConfig = {
-  apiKey: "AIzaSyDQHNvUumdUiab3swQrURVvDqf6tkGBPyU",
-  authDomain: "habers-muestras.firebaseapp.com",
-  projectId: "habers-muestras",
-  storageBucket: "habers-muestras.firebasestorage.app",
-  messagingSenderId: "422538036878",
-  appId: "1:422538036878:web:ffcb93945ac50ae064ebdf",
-  measurementId: "G-7TLWT33BY3"
+  apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1bmlxdWVfbmFtZSI6ImF2aWdpbHwxMzQ1OTYiLCJJbnRlcm5hbElEIjoiYmM4Yjc5NDctNzIxZS00N2UzLTlhYjUtOGY4YzcwNWIxMDAwIiwibmJmIjoxNzc5NDY1MDUwLCJleHAiOjE4MTEwMDEwNTAsImlhdCI6MTc3OTQ2NTA1MCwiaXNzIjoiTWlubnRfU29sdXRpb25zX1NBX0RFX0NWIiwiYXVkIjoiQmluZF9FUlBfQVBJX1VzZXJzIn0.oZBYbDs_6tkE-ve17ZgBKYr_3Yqz1I8w39VlFBSwGi4",
+  authDomain: "tu-proyecto.firebaseapp.com",
+  projectId: "tu-proyecto",
+  storageBucket: "tu-proyecto.firebasestorage.app",
+  messagingSenderId: "000000000000",
+  appId: "1:000000000000:web:0000000000000000"
 };
 
 /* 2) AJUSTES DE LA APP */
@@ -31,12 +30,28 @@ const AJUSTES = {
   // true  = las firmas se suben a Firebase Storage (requiere plan Blaze).
   // false = las firmas se guardan como imagen dentro del documento de Firestore.
   // Si Storage falla, la app usa Firestore automáticamente.
-  usarStorage: false,
+  usarStorage: true,
   prefijoFolio: "HAB-M-",
   diasDevolucionDefault: 7,
   vendedoresIniciales: ["Moisés Haber", "María José González", "Carmen Peñaloza", "Norma Hernández"],
   empresa: "Asociación Habers de México S.A. de C.V.",
   leyenda: "El cliente reconoce haber recibido las muestras descritas en buen estado y se compromete a devolverlas en la fecha indicada o, en su caso, a que se tomen a cuenta de pedido.",
+};
+
+/* 3) BIND ERP (consulta bajo demanda)
+   ⚠ Bind indica que la API Key NO debe ir en código del navegador: en GitHub Pages
+   cualquiera puede leerla y obtendría acceso a todo el ERP.
+   → Producción: deja apiKey vacío y pon en proxyUrl la URL de tu Cloudflare Worker
+     (archivo bind-proxy-worker.js, ver README). El Worker guarda la llave en secreto.
+   → apiKey directo: SOLO para pruebas locales (localhost) y nunca subirlo a GitHub. */
+const BIND_CONFIG = {
+  baseUrl: "https://api.bind.com.mx/api",
+  apiKey: "",            // Bearer API Key (solo pruebas locales)
+  subscriptionKey: "",   // Ocp-Apim-Subscription-Key (opcional, usuarios registrados)
+  proxyUrl: "",          // p. ej. "https://bind-habers.TU-SUBDOMINIO.workers.dev/api"
+  serie: "M",            // solo se consultan pedidos de esta serie
+  timeoutMs: 15000,
+  cacheMin: 10,          // minutos que se reutiliza una consulta ya hecha (ahorra cuota)
 };
 
 /* =========================================================
@@ -97,6 +112,7 @@ const state = {
   filtros: { desde: "", hasta: "", vendedor: "" },
   detalle: { busqueda: "", estatus: "todos", campo: "fechaSalida", dir: "desc" },
   firmas: { vendedor: null, receptor: null },
+  bindPedido: null,       // { etiqueta: "M90", id: "<guid Bind>" } del último pedido importado
   admin: { desbloqueado: ss.get("habers_admin") === "1", existe: null },
 };
 
@@ -592,6 +608,8 @@ function valoresIniciales() {
   syncSwitchTxt();
   pads.forEach(p => p.borrar());
   $$("#form [aria-invalid]").forEach(el => el.removeAttribute("aria-invalid"));
+  state.bindPedido = null;
+  setBindEstado("");
 }
 
 $("#form").addEventListener("reset", () => setTimeout(valoresIniciales, 0));
@@ -621,6 +639,8 @@ function leerFormulario() {
     subsidiada: $("#subsidiada").checked,
     estatus,
     notas: $("#notas").value.trim(),
+    bindPedido: state.bindPedido?.etiqueta || "",
+    bindPedidoId: state.bindPedido?.id || "",
   };
 }
 
@@ -718,6 +738,202 @@ $("#form").addEventListener("submit", async e => {
 });
 
 /* =========================================================
+   Bind ERP — importar pedido de muestra (serie M) bajo demanda
+   ========================================================= */
+const bindCache = new Map(); // etiqueta → { t, pedido }
+
+function setBindEstado(msg, tipo = "") {
+  const el = $("#bind-estado");
+  if (!el) return;
+  el.textContent = msg;
+  el.className = `bind-estado small${tipo ? " " + tipo : ""}`;
+}
+
+// "M90", "m-90", "M 90" o solo "90" → { serie:"M", numero:90, etiqueta:"M90" }
+function parsearNumeroMuestra(txt) {
+  const t = String(txt || "").trim().toUpperCase().replace(/\s+/g, "");
+  const m = t.match(/^(?:([A-Z]+)-?)?0*(\d{1,9})$/);
+  if (!m) return { error: `Escribe el número de muestra, p. ej. ${BIND_CONFIG.serie}90.` };
+  if (m[1] && m[1] !== BIND_CONFIG.serie) return { error: `Solo se consultan pedidos de la serie ${BIND_CONFIG.serie}.` };
+  const numero = Number(m[2]);
+  return { serie: BIND_CONFIG.serie, numero, etiqueta: `${BIND_CONFIG.serie}${numero}` };
+}
+
+async function bindFetch(rutaYQuery) {
+  const usarProxy = Boolean(BIND_CONFIG.proxyUrl);
+  if (!usarProxy && !BIND_CONFIG.apiKey) {
+    throw new Error("Falta configurar Bind ERP: define BIND_CONFIG.proxyUrl (recomendado) o BIND_CONFIG.apiKey en app.js.");
+  }
+  const base = (usarProxy ? BIND_CONFIG.proxyUrl : BIND_CONFIG.baseUrl).replace(/\/+$/, "");
+  const headers = { Accept: "application/json" };
+  if (!usarProxy) {
+    headers.Authorization = `Bearer ${BIND_CONFIG.apiKey}`;
+    if (BIND_CONFIG.subscriptionKey) headers["Ocp-Apim-Subscription-Key"] = BIND_CONFIG.subscriptionKey;
+  }
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), BIND_CONFIG.timeoutMs);
+  let resp;
+  try {
+    resp = await fetch(`${base}${rutaYQuery}`, { method: "GET", headers, signal: ctrl.signal });
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("Bind ERP no respondió a tiempo. Intenta de nuevo.");
+    throw new Error(usarProxy
+      ? "No se pudo conectar con el proxy de Bind ERP. Revisa tu conexión y la URL en BIND_CONFIG.proxyUrl."
+      : "El navegador bloqueó la llamada directa a Bind ERP (red o CORS). Configura el proxy descrito en el README.");
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (resp.status === 401 || resp.status === 403) throw Object.assign(new Error("Bind ERP rechazó la autorización (API Key inválida, vencida u origen no permitido)."), { status: resp.status });
+  if (resp.status === 429) throw Object.assign(new Error("Se alcanzó el límite de consultas de Bind ERP. Espera unos minutos e intenta de nuevo."), { status: 429 });
+  if (resp.status === 404) return null;
+  if (!resp.ok) {
+    let detalle = "";
+    try { const j = await resp.json(); detalle = j?.Message || j?.message || j?.error || ""; } catch { /* sin cuerpo */ }
+    throw Object.assign(new Error(`Bind ERP respondió ${resp.status}${detalle ? `: ${detalle}` : ""}.`), { status: resp.status });
+  }
+  return resp.json();
+}
+
+// Bind pagina como { value:[], nextLink, count }, a veces envuelto en un arreglo.
+function listaOData(json) {
+  if (!json) return [];
+  const obj = Array.isArray(json) && json.length === 1 && Array.isArray(json[0]?.value) ? json[0] : json;
+  if (Array.isArray(obj?.value)) return obj.value;
+  if (Array.isArray(obj)) return obj;
+  return [obj];
+}
+
+const primero = (obj, claves) => {
+  for (const k of claves) {
+    const v = obj?.[k];
+    if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+  }
+  return undefined;
+};
+
+async function buscarPedidoBind({ serie, numero, etiqueta }) {
+  const cache = bindCache.get(etiqueta);
+  if (cache && Date.now() - cache.t < BIND_CONFIG.cacheMin * 60000) return cache.pedido;
+
+  const filtro = `Number eq ${numero} and Series eq '${serie}'`;
+  let lista;
+  try {
+    lista = listaOData(await bindFetch(`/Orders?$filter=${encodeURIComponent(filtro)}`));
+  } catch (e) {
+    // Si Bind no acepta filtrar por Series (400), se filtra solo por número y se valida la serie aquí.
+    if (e.status !== 400) throw e;
+    lista = listaOData(await bindFetch(`/Orders?$filter=${encodeURIComponent(`Number eq ${numero}`)}`));
+  }
+  lista = lista.filter(o => String(o?.Number ?? numero) === String(numero) && String(o?.Series ?? serie).toUpperCase() === serie);
+  if (!lista.length) return null;
+
+  let pedido = lista[0];
+  // El listado suele traer solo el encabezado: si no hay productos, se pide el detalle por ID.
+  const tieneProductos = Array.isArray(primero(pedido, ["Products", "Items", "OrderProducts"]));
+  const id = primero(pedido, ["ID", "Id", "id"]);
+  if (!tieneProductos && id) {
+    const detalle = await bindFetch(`/Orders/${encodeURIComponent(id)}`);
+    if (detalle && !Array.isArray(detalle)) pedido = { ...pedido, ...detalle };
+  }
+  bindCache.set(etiqueta, { t: Date.now(), pedido });
+  return pedido;
+}
+
+function mapearPedidoBind(pedido) {
+  const comentarios = String(pedido.Comments ?? "");
+  const correoEnComentarios = comentarios.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+  const productos = primero(pedido, ["Products", "Items", "OrderProducts"]) || [];
+
+  return {
+    id: primero(pedido, ["ID", "Id", "id"]) || "",
+    cliente: String(primero(pedido, ["ClientName", "Client", "CustomerName"]) ?? "").trim(),
+    telefono: String(primero(pedido, ["PhoneNumber", "Phone", "ClientPhone"]) ?? "").trim(),
+    correo: String(correoEnComentarios || primero(pedido, ["ClientEmail", "Email"]) || "").trim(),
+    muestras: (Array.isArray(productos) ? productos : []).map(p => {
+      const nombre = String(primero(p, ["Title", "Name", "ProductName", "Description"]) ?? "").trim();
+      const codigo = String(primero(p, ["Code", "ProductCode", "SKU"]) ?? "").trim();
+      const descripcion = codigo && nombre && !nombre.includes(codigo) ? `${codigo} · ${nombre}` : (nombre || codigo);
+      const cantidad = Number(primero(p, ["Qty", "Amount", "Quantity"])) || 1;
+      const valor = Number(primero(p, ["Price", "UnitPrice"])) || 0;
+      return { descripcion, cantidad: Math.max(1, Math.round(cantidad)), valor: Math.round(valor * 100) / 100 };
+    }).filter(m => m.descripcion),
+  };
+}
+
+function aplicarPedidoBind(datos, etiqueta) {
+  const poner = (sel, valor) => {
+    if (!valor) return;
+    const el = $(sel);
+    el.value = valor;
+    el.removeAttribute("aria-invalid");
+  };
+  poner("#clienteNombre", datos.cliente);
+  poner("#clienteTelefono", datos.telefono);
+  poner("#clienteCorreo", datos.correo);
+
+  $("#muestras").innerHTML = "";
+  if (datos.muestras.length) datos.muestras.forEach(m => agregarFilaMuestra(m));
+  else agregarFilaMuestra();
+  recalcular();
+
+  state.bindPedido = { etiqueta, id: datos.id };
+}
+
+async function cargarDesdeBind() {
+  const input = $("#bind-numero");
+  const btn = $("#bind-cargar");
+  const q = parsearNumeroMuestra(input.value);
+  if (q.error) {
+    input.setAttribute("aria-invalid", "true");
+    input.focus();
+    setBindEstado(q.error, "error");
+    return;
+  }
+  input.value = q.etiqueta;
+  input.removeAttribute("aria-invalid");
+
+  const hayCaptura = leerMuestras().some(m => m.descripcion) || $("#clienteNombre").value.trim();
+  if (hayCaptura && !confirm(`Se reemplazarán los datos del cliente y las muestras capturadas con el pedido ${q.etiqueta} de Bind ERP. ¿Continuar?`)) return;
+
+  btn.disabled = true;
+  btn.classList.add("is-cargando");
+  setBindEstado(`Consultando ${q.etiqueta} en Bind ERP…`);
+  try {
+    const pedido = await buscarPedidoBind(q);
+    if (!pedido) {
+      setBindEstado(`No se encontró el pedido ${q.etiqueta} en Bind ERP.`, "error");
+      return;
+    }
+    const datos = mapearPedidoBind(pedido);
+    aplicarPedidoBind(datos, q.etiqueta);
+    const faltan = [!datos.cliente && "cliente", !datos.telefono && "teléfono", !datos.correo && "correo", !datos.muestras.length && "productos"].filter(Boolean);
+    const piezas = datos.muestras.reduce((a, m) => a + m.cantidad, 0);
+    setBindEstado(
+      `✓ ${q.etiqueta} cargado: ${datos.muestras.length} producto(s), ${numero(piezas)} pieza(s).` +
+      (faltan.length ? ` Sin dato en Bind: ${faltan.join(", ")}.` : "") +
+      " Todos los campos siguen siendo editables.",
+      faltan.length ? "" : "ok");
+    toast(`Pedido ${q.etiqueta} importado de Bind ERP.`);
+  } catch (err) {
+    console.error("Bind ERP:", err);
+    setBindEstado(err.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("is-cargando");
+  }
+}
+
+$("#bind-cargar").addEventListener("click", cargarDesdeBind);
+$("#bind-numero").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); cargarDesdeBind(); } // evita enviar el formulario
+});
+if (!BIND_CONFIG.proxyUrl && BIND_CONFIG.apiKey && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+  console.warn("⚠ BIND_CONFIG.apiKey está expuesta en un sitio público. Usa el proxy (BIND_CONFIG.proxyUrl) y borra la llave de app.js.");
+}
+
+/* =========================================================
    Detalle (tabla tipo hoja de cálculo)
    ========================================================= */
 const ordenadores = {
@@ -741,7 +957,7 @@ function filtradosDetalle() {
     if (est !== "todos" && est !== "vencido" && p.estatus !== est) return false;
     if (!terminos.length) return true;
     const texto = norm([
-      p.folio, p.vendedorNombre, p.cliente?.nombre, p.cliente?.empresa, p.cliente?.telefono, p.cliente?.correo,
+      p.folio, p.bindPedido, p.vendedorNombre, p.cliente?.nombre, p.cliente?.empresa, p.cliente?.telefono, p.cliente?.correo,
       ...(p.muestras || []).map(m => m.descripcion), p.notas,
     ].join(" "));
     return terminos.every(t => texto.includes(t));
@@ -851,6 +1067,7 @@ $("#btn-exportar").addEventListener("click", () => {
   if (!lista.length) return toast("No hay registros para exportar con estos filtros.", "error");
   const cols = [
     ["Folio", p => p.folio],
+    ["Pedido Bind", p => p.bindPedido || ""],
     ["Fecha salida", p => p.fechaSalida],
     ["Devolución estimada", p => p.fechaDevolucion],
     ["Devolución real", p => p.fechaDevolucionReal || ""],
@@ -917,6 +1134,7 @@ function abrirComprobante(p) {
         ${dato("Teléfono", esc(p.cliente?.telefono))}
         ${dato("Correo", esc(p.cliente?.correo))}
         ${dato("Subsidiada / a cuenta de pedido", p.subsidiada ? "Sí" : "No")}
+        ${dato("Pedido Bind ERP", esc(p.bindPedido))}
       </dl>
       <div class="tabla-wrap">
         <table class="tabla">

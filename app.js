@@ -47,9 +47,9 @@ const AJUSTES = {
    → apiKey directo: SOLO para pruebas locales (localhost) y nunca subirlo a GitHub. */
 const BIND_CONFIG = {
   baseUrl: "https://api.bind.com.mx/api",
-  apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1bmlxdWVfbmFtZSI6ImF2aWdpbHwxMzQ1OTYiLCJJbnRlcm5hbElEIjoiYmM4Yjc5NDctNzIxZS00N2UzLTlhYjUtOGY4YzcwNWIxMDAwIiwibmJmIjoxNzc5NDY1MDUwLCJleHAiOjE4MTEwMDEwNTAsImlhdCI6MTc3OTQ2NTA1MCwiaXNzIjoiTWlubnRfU29sdXRpb25zX1NBX0RFX0NWIiwiYXVkIjoiQmluZF9FUlBfQVBJX1VzZXJzIn0.oZBYbDs_6tkE-ve17ZgBKYr_3Yqz1I8w39VlFBSwGi4",            // Bearer API Key (solo pruebas locales)
+  apiKey: "",            // Bearer API Key (solo pruebas locales)
   subscriptionKey: "",   // Ocp-Apim-Subscription-Key (opcional, usuarios registrados)
-  proxyUrl: "https://bind-proxy.contabilidad1.workers.dev/",          // p. ej. "https://bind-habers.TU-SUBDOMINIO.workers.dev/api"
+  proxyUrl: "https://bind-proxy.contabilidad1.workers.dev/api",          // p. ej. "https://bind-habers.TU-SUBDOMINIO.workers.dev/api"
   serie: "M",            // solo se consultan pedidos de esta serie
   timeoutMs: 15000,
   cacheMin: 10,          // minutos que se reutiliza una consulta ya hecha (ahorra cuota)
